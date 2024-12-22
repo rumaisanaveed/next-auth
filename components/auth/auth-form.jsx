@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import classes from "./auth-form.module.css";
 import { toast } from "sonner";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/router";
 
 async function createUser(email, password) {
-  const response = await fetch("/api/signup", {
+  const response = await fetch("/api/auth/signup", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -21,7 +23,8 @@ async function createUser(email, password) {
 function AuthForm() {
   // states
   const [isLogin, setIsLogin] = useState(true);
-  const [requestStatus, setRequestStatus] = useState("");
+
+  const router = useRouter();
 
   // refs
   const emailRef = useRef();
@@ -39,18 +42,28 @@ function AuthForm() {
     const enteredEmail = emailRef.current.value;
     const enteredPassword = passwordRef.current.value;
     if (isLogin) {
+      // prevent to redirect to the default error page after login fails
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: enteredEmail,
+        password: enteredPassword,
+      });
+      console.log(result);
+      if (!result.error) {
+        toast.success("Logged in successfully");
+        router.replace("/profile");
+      } else {
+        toast.error(result.error);
+      }
     } else {
       const toastId = toast.loading("Creating user...");
-      setRequestStatus("pending");
       try {
         const result = await createUser(enteredEmail, enteredPassword);
-        setRequestStatus("success");
         toast.dismiss(toastId);
         toast.success("User created successfully");
         console.log(result);
       } catch (error) {
         console.error(error);
-        setRequestStatus("error");
         toast.dismiss(toastId);
         toast.error(error.message || "Something went wrong!");
       }
